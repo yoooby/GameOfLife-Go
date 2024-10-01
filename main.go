@@ -101,7 +101,7 @@ func (g *Game) Update() error {
 			for dy := 0; dy < cellHeight; dy++ {
 				for dx := 0; dx < cellWidth; dx++ {
 					idx := 4 * ((y*cellHeight+dy)*screenWidth + (x*cellWidth + dx))
-					g.pixels[idx] = clr[0] // yep fin odni haaaaaaaaaaaaaaa wedni
+					g.pixels[idx] = clr[0] // yep; doda
 					g.pixels[idx+1] = clr[1]
 					g.pixels[idx+2] = clr[2]
 					g.pixels[idx+3] = 255 // Alpha channel
