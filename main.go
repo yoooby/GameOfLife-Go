@@ -1,7 +1,6 @@
 package main
 
 import (
-	"image/color"
 	"log"
 
 	"github.com/hajimehoshi/ebiten/v2"
@@ -10,7 +9,7 @@ import (
 
 const (
 	screenWidth  = 1080
-	screenHeight = 1080
+	screenHeight = 720
 )
 
 type World struct {
@@ -20,14 +19,8 @@ type World struct {
 }
 
 var dirs = [8][2]int8{
-	{1, 0},
-	{-1, 0},
-	{0, 1},
-	{0, -1},
-	{1, 1},
-	{-1, -1},
-	{1, -1},
-	{-1, 1},
+	{1, 0}, {-1, 0}, {0, 1}, {0, -1},
+	{1, 1}, {-1, -1}, {1, -1}, {-1, 1},
 }
 
 func getNeighbors(state [][]bool, y, x int) int {
@@ -72,8 +65,8 @@ func (g *Game) play() {
 
 type Game struct {
 	state   *World
-	pixels  []byte
 	running bool
+	pixels  []byte
 }
 
 func (g *Game) Update() error {
@@ -93,35 +86,52 @@ func (g *Game) Update() error {
 	if g.running {
 		g.play()
 	}
-	return nil
-}
 
-func (g *Game) Layout(outHeight, outWidth int) (int, int) {
-	return screenHeight, screenWidth
-}
-func (g *Game) Draw(screen *ebiten.Image) {
+	// Update pixel buffer based on the state of the world.
+	cellWidth := screenWidth / g.state.width
+	cellHeight := screenHeight / g.state.height
+
 	for y := 0; y < g.state.height; y++ {
 		for x := 0; x < g.state.width; x++ {
+			clr := [3]uint8{0, 0, 0} // i know, stfu
 			if g.state.area[y][x] {
-				for dy := 0; dy < screenHeight/g.state.height; dy++ {
-					for dx := 0; dx < screenWidth/g.state.width; dx++ {
-						screen.Set(x*(screenWidth/g.state.width)+dx, y*(screenHeight/g.state.height)+dy, color.White)
-					}
+				clr = [3]uint8{255, 255, 255}
+			}
+
+			for dy := 0; dy < cellHeight; dy++ {
+				for dx := 0; dx < cellWidth; dx++ {
+					idx := 4 * ((y*cellHeight+dy)*screenWidth + (x*cellWidth + dx))
+					g.pixels[idx] = clr[0] // yep fin odni haaaaaaaaaaaaaaa wedni
+					g.pixels[idx+1] = clr[1]
+					g.pixels[idx+2] = clr[2]
+					g.pixels[idx+3] = 255 // Alpha channel
 				}
 			}
 		}
 	}
+	return nil
+}
+
+func (g *Game) Layout(outWidth, outHeight int) (int, int) {
+	return screenWidth, screenHeight
+}
+
+func (g *Game) Draw(screen *ebiten.Image) {
+	screen.WritePixels(g.pixels)
 }
 
 func main() {
-	world := &World{area: make([][]bool, screenHeight), width: screenWidth / 10, height: screenHeight / 10}
+	world := &World{area: make([][]bool, screenHeight/10), width: screenWidth / 10, height: screenHeight / 10}
 	for i := range world.area {
 		world.area[i] = make([]bool, world.width)
 	}
 
+	// Initialize pixel buffer (RGBA for each pixel).
+	pixels := make([]byte, 4*screenWidth*screenHeight)
+
 	ebiten.SetWindowSize(screenWidth, screenHeight)
 	ebiten.SetWindowTitle("Game of Life")
-	if err := ebiten.RunGame(&Game{state: world}); err != nil {
+	if err := ebiten.RunGame(&Game{state: world, pixels: pixels}); err != nil {
 		log.Fatal(err)
 	}
 }
