@@ -1,10 +1,10 @@
 package main
 
 import (
+	"image/color"
 	"log"
 
 	"github.com/hajimehoshi/ebiten/v2"
-	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
 	"github.com/hajimehoshi/ebiten/v2/inpututil"
 )
 
@@ -56,65 +56,72 @@ func (g *Game) play() {
 		out[i] = make([]bool, len(g.state.area[i]))
 	}
 
-	/*
-			A live cell dies if it has fewer than two live neighbors.
-		    A live cell with two or three live neighbors lives on to the next generation.
-		    A live cell with more than three live neighbors dies.
-		    A dead cell will be brought back to live if it has exactly three live neighbors.
-
-			< 2 He9 mcha
-			 == 3 live because 2 or 3 stays so no need
-			 3 < Heee9 mcha no matter what
-
-	*/
-
 	for row := range g.state.area {
-		for col := range row {
+		for col := range g.state.area[row] {
 			count := getNeighbors(g.state.area, row, col)
 
-			if count < 2 {
-				out[row][col] = false
-			}
-			if count > 3 {
-				out[row][col] = false
-			}
-			if count == 3 {
-				out[row][col] = true
+			if g.state.area[row][col] {
+				out[row][col] = count == 2 || count == 3
+			} else {
+				out[row][col] = count == 3
 			}
 		}
 	}
 	g.state.area = out
-
 }
 
 type Game struct {
-	state  *World
-	pixels []byte
+	state   *World
+	pixels  []byte
+	running bool
 }
 
 func (g *Game) Update() error {
 	if inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) {
 		x, y := ebiten.CursorPosition()
-		g.state.area[y][y] =  !g.state.area[y][x]
+		cellX := x / (screenWidth / g.state.width)
+		cellY := y / (screenHeight / g.state.height)
+		if cellX >= 0 && cellX < g.state.width && cellY >= 0 && cellY < g.state.height {
+			g.state.area[cellY][cellX] = !g.state.area[cellY][cellX]
+		}
 	}
-	g.play()
+
+	if inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonRight) {
+		g.running = !g.running
+	}
+
+	if g.running {
+		g.play()
+	}
 	return nil
 }
 
-func (g *Game) Draw(screen *ebiten.Image) {
-	ebitenutil.DebugPrint(screen, "Zeb a zebi!")
-
+func (g *Game) Layout(outHeight, outWidth int) (int, int) {
+	return screenHeight, screenWidth
 }
-
-func (g *Game) Layout(outsideWidth, outsideHeight int) (int, int) {
-	return screenWidth, screenHeight
-
+func (g *Game) Draw(screen *ebiten.Image) {
+	for y := 0; y < g.state.height; y++ {
+		for x := 0; x < g.state.width; x++ {
+			if g.state.area[y][x] {
+				for dy := 0; dy < screenHeight/g.state.height; dy++ {
+					for dx := 0; dx < screenWidth/g.state.width; dx++ {
+						screen.Set(x*(screenWidth/g.state.width)+dx, y*(screenHeight/g.state.height)+dy, color.White)
+					}
+				}
+			}
+		}
+	}
 }
 
 func main() {
-	ebiten.SetWindowSize(1080, 720)
-	ebiten.SetWindowTitle("Hello, World!")
-	if err := ebiten.RunGame(&Game{}); err != nil {
+	world := &World{area: make([][]bool, screenHeight), width: screenWidth / 10, height: screenHeight / 10}
+	for i := range world.area {
+		world.area[i] = make([]bool, world.width)
+	}
+
+	ebiten.SetWindowSize(screenWidth, screenHeight)
+	ebiten.SetWindowTitle("Game of Life")
+	if err := ebiten.RunGame(&Game{state: world}); err != nil {
 		log.Fatal(err)
 	}
 }
